@@ -992,6 +992,23 @@ int main(int argc, char **argv)
             {
                 std::string region_label = region_names[partner_rank];
 
+                int ranks_in_region = partner_rank + 1;
+                int active = (rank < ranks_in_region);
+        
+                MPI_Comm region_comm = MPI_COMM_NULL;
+                MPI_Comm_split(MPI_COMM_WORLD, active ? 0 : MPI_UNDEFINED, rank, &region_comm);
+
+                if (!active)
+                {
+                    MPI_Barrier(MPI_COMM_WORLD);
+                    continue;
+                }
+        
+                int region_rank = 0;
+                int region_size = 0;
+                MPI_Comm_rank(region_comm, &region_rank);
+                MPI_Comm_size(region_comm, &region_size);
+
                 size_t red_count = static_cast<size_t>(message);
                 if (red_count > INT_MAX) {
                     if (rank == 0) fprintf(stderr, "Reduce count too large\n");
@@ -1059,15 +1076,15 @@ int main(int argc, char **argv)
                 {
 #if defined(USE_CUDA)
                     cuda_check(cudaMemcpy(rd_h_send, rd_d_send, red_count, cudaMemcpyDeviceToHost));
-                    MPI_Reduce(rd_h_send, rd_h_recv, (int)red_count, MPI_CHAR, MPI_SUM, 0, MPI_COMM_WORLD);
+                    MPI_Reduce(rd_h_send, rd_h_recv, (int)red_count, MPI_CHAR, MPI_SUM, 0, region_comm);
                     cuda_check(cudaMemcpy(rd_d_recv, rd_h_recv, red_count, cudaMemcpyHostToDevice));
 #elif defined(USE_HIP)
                     // hipMemcpy(rd_h_send, rd_d_send, red_count, hipMemcpyDeviceToHost);
                     // MPI_Reduce(rd_h_send, rd_h_recv, (int)red_count, MPI_CHAR, MPI_SUM, 0, MPI_COMM_WORLD);
                     // hipMemcpy(rd_d_recv, rd_h_recv, red_count, hipMemcpyHostToDevice);
-                    MPI_Reduce(rd_d_send, rd_d_recv, (int)red_count, MPI_CHAR, MPI_SUM, 0, MPI_COMM_WORLD);
+                    MPI_Reduce(rd_d_send, rd_d_recv, (int)red_count, MPI_CHAR, MPI_SUM, 0, region_comm);
 #else
-                    MPI_Reduce(rd_send, rd_recv, (int)red_count, MPI_CHAR, MPI_SUM, 0, MPI_COMM_WORLD);
+                    MPI_Reduce(rd_send, rd_recv, (int)red_count, MPI_CHAR, MPI_SUM, 0, region_comm);
 #endif
                 }
 
@@ -1082,26 +1099,27 @@ int main(int argc, char **argv)
                 double max_rtt = 0.0;
                 int iters = 0;
 
+                MPI_Barrier(region_comm);
+                double t0 = MPI_Wtime();
+
                 // --- timed reduce ---
                 for(int i = 0; i < num_iterations; i++)
                 {
-                    MPI_Barrier(MPI_COMM_WORLD);
-                    double t0 = MPI_Wtime();
 #if defined(USE_CUDA)
                     cuda_check(cudaMemcpy(rd_h_send, rd_d_send, red_count, cudaMemcpyDeviceToHost));
-                    MPI_Reduce(rd_h_send, rd_h_recv, (int)red_count, MPI_CHAR, MPI_SUM, 0, MPI_COMM_WORLD);
+                    MPI_Reduce(rd_h_send, rd_h_recv, (int)red_count, MPI_CHAR, MPI_SUM, 0, region_comm);
                     cuda_check(cudaMemcpy(rd_d_recv, rd_h_recv, red_count, cudaMemcpyHostToDevice));
 #elif defined(USE_HIP)
                     // hipMemcpy(rd_h_send, rd_d_send, red_count, hipMemcpyDeviceToHost);
                     // MPI_Reduce(rd_h_send, rd_h_recv, (int)red_count, MPI_CHAR, MPI_SUM, 0, MPI_COMM_WORLD);
                     // hipMemcpy(rd_d_recv, rd_h_recv, red_count, hipMemcpyHostToDevice);
-                    MPI_Reduce(rd_d_send, rd_d_recv, (int)red_count, MPI_CHAR, MPI_SUM, 0, MPI_COMM_WORLD);
+                    MPI_Reduce(rd_d_send, rd_d_recv, (int)red_count, MPI_CHAR, MPI_SUM, 0, region_comm);
 #else
-                    MPI_Reduce(rd_send, rd_recv, (int)red_count, MPI_CHAR, MPI_SUM, 0, MPI_COMM_WORLD);
+                    MPI_Reduce(rd_send, rd_recv, (int)red_count, MPI_CHAR, MPI_SUM, 0, region_comm);
 #endif
                     double dt = MPI_Wtime() - t0;
                     double iter_max = 0.0;
-                    MPI_Reduce(&dt, &iter_max, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+                    MPI_Reduce(&dt, &iter_max, 1, MPI_DOUBLE, MPI_MAX, 0, region_comm);
 
                     if(rank == 0)
                     {
@@ -1143,9 +1161,10 @@ int main(int argc, char **argv)
 #endif
                 printf("freed memory\n");
                 fflush(stdout);
+                MPI_Comm_free(&region_comm);
+                MPI_Barrier(MPI_COMM_WORLD);
             }
         }
-
         MPI_Barrier(MPI_COMM_WORLD);
 
         // ===================== ALLREDUCE =====================
