@@ -1135,7 +1135,7 @@ int main(int argc, char **argv)
                     cali_set_double(red_avg_time_sec_attr, avg_rtt);
                     cali_set_double(red_max_time_sec_attr, iter_max);
                         //cali_set_double(red_min_time_sec_attr, min_rtt);
-                    printf("finished iteration: %d\n", i);
+                    printf("REDUCE %s: total=%g s, avg_per_iter=%g s over %d iterations\n", region_label.c_str(), iter_max, avg_rtt, num_iterations);
                     fflush(stdout);
 #endif
                 }
