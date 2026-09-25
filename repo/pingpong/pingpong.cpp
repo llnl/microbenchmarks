@@ -1122,7 +1122,7 @@ int main(int argc, char **argv)
                 double iter_max = 0.0;
                 MPI_Reduce(&dt, &iter_max, 1, MPI_DOUBLE, MPI_MAX, 0, region_comm);
 
-                if(rank == 0)
+                if(region_rank == 0)
                 {
                         // red_total_time += iter_max;
                         // if(iter_max < min_rtt) min_rtt = iter_max;      //fix min and max calculation
