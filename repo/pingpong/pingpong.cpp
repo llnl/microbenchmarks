@@ -1129,11 +1129,11 @@ int main(int argc, char **argv)
                         // if(iter_max > max_rtt) max_rtt = iter_max;
                         // ++iters;
 
-                    double avg_rtt = iter_max / num_iterations
+                    double avg_rtt = iter_max / num_iterations;
 #if defined(USE_CALIPER)
                     cali_set_string(comm_phase_attr, "reduce");
                     cali_set_double(red_avg_time_sec_attr, avg_rtt);
-                    cali_set_double(red_max_time_sec_attr, max_rtt);
+                    cali_set_double(red_max_time_sec_attr, iter_max);
                         //cali_set_double(red_min_time_sec_attr, min_rtt);
                     printf("finished iteration: %d\n", i);
                     fflush(stdout);
