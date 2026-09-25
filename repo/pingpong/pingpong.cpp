@@ -1117,28 +1117,29 @@ int main(int argc, char **argv)
 #else
                     MPI_Reduce(rd_send, rd_recv, (int)red_count, MPI_CHAR, MPI_SUM, 0, region_comm);
 #endif
-                    double dt = MPI_Wtime() - t0;
-                    double iter_max = 0.0;
-                    MPI_Reduce(&dt, &iter_max, 1, MPI_DOUBLE, MPI_MAX, 0, region_comm);
-
-                    if(rank == 0)
-                    {
-                        red_total_time += iter_max;
-                        if(iter_max < min_rtt) min_rtt = iter_max;      //fix min and max calculation
-                        if(iter_max > max_rtt) max_rtt = iter_max;
-                        ++iters;
-
-                        double avg_rtt = (iters > 0) ? (red_total_time / iters) : 0.0;
-#if defined(USE_CALIPER)
-                        cali_set_string(comm_phase_attr, "reduce");
-                        cali_set_double(red_avg_time_sec_attr, avg_rtt);
-                        cali_set_double(red_max_time_sec_attr, max_rtt);
-                        cali_set_double(red_min_time_sec_attr, min_rtt);
-                        printf("finished iteration: %d\n", i);
-                        fflush(stdout);
-#endif
-                    }
                 }
+                double dt = MPI_Wtime() - t0;
+                double iter_max = 0.0;
+                MPI_Reduce(&dt, &iter_max, 1, MPI_DOUBLE, MPI_MAX, 0, region_comm);
+
+                if(rank == 0)
+                {
+                        // red_total_time += iter_max;
+                        // if(iter_max < min_rtt) min_rtt = iter_max;      //fix min and max calculation
+                        // if(iter_max > max_rtt) max_rtt = iter_max;
+                        // ++iters;
+
+                    double avg_rtt = iter_max / num_iterations
+#if defined(USE_CALIPER)
+                    cali_set_string(comm_phase_attr, "reduce");
+                    cali_set_double(red_avg_time_sec_attr, avg_rtt);
+                    cali_set_double(red_max_time_sec_attr, max_rtt);
+                        //cali_set_double(red_min_time_sec_attr, min_rtt);
+                    printf("finished iteration: %d\n", i);
+                    fflush(stdout);
+#endif
+                }
+                
 #if defined(USE_CALIPER)
                 CALI_MARK_END(region_label.c_str());
 #endif
